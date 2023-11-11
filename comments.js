@@ -1,55 +1,72 @@
 //create web server
-var express = require('express');
-var router = express.Router();
-var db = require('../models/db');
-var bodyParser = require('body-parser');
-var urlencodedParser = bodyParser.urlencoded({ extended: false });
-var session = require('express-session');
-var cookieParser = require('cookie-parser');
-var app = express();
-app.use(cookieParser());
-app.use(session({secret: "Shh, its a secret!"}));
-var bcrypt = require('bcrypt');
-var saltRounds = 10;
+var http = require('http');
+//create file system object
+var fs = require('fs');
+//create url object
+var url = require('url');
+//create querystring object
+var querystring = require('querystring');
+//create mysql object
+var mysql = require('mysql');
 
-// Path: /comments/
-// Method: GET
-// Description: get all comments
-router.get('/', function(req, res) {
-    if(req.session.user) {
-      db.Comment.find({}, function(err, comments) {
-        if(err) {
-          res.send(err);
-        } else {
-          res.json(comments);
-        }
-      });
-    } else {
-      res.send("You are not logged in");
-    }
+//create connection to database
+var con = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "comments"
 });
 
-// Path: /comments/:id
-// Method: GET
-// Description: get comment by id
-router.get('/:id', function(req, res) {
-    if(req.session.user) {
-      db.Comment.findById(req.params.id, function(err, comment) {
-        if(err) {
-          res.send(err);
-        } else {
-          res.json(comment);
-        }
-      });
-    } else {
-      res.send("You are not logged in");
-    }
+//connect to database
+con.connect(function(err) {
+    if (err) throw err;
+    console.log("Connected!");
 });
 
-// Path: /comments/
-// Method: POST
-// Description: create new comment
-router.post('/', urlencodedParser, function(req, res) {
-    if(req.session.user) {
-      var comment = new db.Comment({
-        text: req.body.text,
+//create server object
+http.createServer(function (req, res) {
+  //parse the url
+  var q = url.parse(req.url, true);
+  //create the path
+  var filename = "." + q.pathname;
+  //if the path is just a slash
+  if (filename == './') {
+    //set the path to index.html
+    filename = './index.html';
+  }
+  //read the file
+  fs.readFile(filename, function(err, data) {
+    //if there is an error
+    if (err) {
+      //write the error to the page
+      res.writeHead(404, {'Content-Type': 'text/html'});
+      return res.end("404 Not Found");
+    }
+    //write the data to the page
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.write(data);
+    return res.end();
+  });
+  //if the request method is post
+  if (req.method == 'POST') {
+    //create body variable
+    var body = '';
+    //when you receive data
+    req.on('data', function (data) {
+        //add the data to the body
+        body += data;
+        //if the body is too long
+        if (body.length > 1e6)
+            //destroy the connection
+            req.connection.destroy();
+    });
+    //when you finish receiving data
+    req.on('end', function () {
+        //parse the body
+        var post = querystring.parse(body);
+        //if the request is to add a comment
+        if (post['action'] == 'add') {
+          //create sql query
+          var sql = "INSERT INTO comments (comment) VALUES ('" + post['comment'] + "');";
+          //run sql query
+          con.query(sql, function (err, result)
