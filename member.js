@@ -1,12 +1,10 @@
-function skillsMember() {
-    return {
-        restrict: 'E',
-        templateUrl: 'modules/skills/views/member.html',
-        controller: 'SkillsMemberController',
-        controllerAs: 'vm',
-        bindToController: true,
-        scope: {
-            member: '='
-        }
+function skillsMember()
+{
+    var skills = ["HTML", "CSS", "JS", "PHP"];
+    var member = {
+        name: "John",
+        age: 25,
+        skills: skills
     };
+    return member.skills[2];
 }
